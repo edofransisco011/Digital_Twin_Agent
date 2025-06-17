@@ -9,7 +9,8 @@ from qwen_agent.agents import Assistant
 # --- Custom Tool Imports ---
 from tools.calendar_tools import GoogleCalendarTool
 from tools.email_tools import GmailTool
-from tools.style_retriever_tool import StyleRetrieverTool # Import the new tool
+from tools.style_retriever_tool import StyleRetrieverTool
+from tools.writer_tools import GmailSenderTool, CalendarCreatorTool # Import writer tools
 
 # --- Load Environment Variables ---
 load_dotenv()
@@ -25,15 +26,16 @@ llm_config = {
 }
 
 # --- Define the BASE System Prompt ---
-# We've updated the instructions for email drafting.
+# The instructions now include a safety protocol for write actions.
 system_prompt_template = (
     "You are a highly capable AI personal assistant, a 'Digital Twin'. "
     "Your primary goal is to learn from the user's data and communication style to assist them proactively. "
-    "When asked about schedules, use the google_calendar_reader tool. "
-    "When asked about your inbox, use the gmail_reader tool.\n"
-    "IMPORTANT: When asked to DRAFT an email, you MUST follow these two steps:\n"
-    "1. First, use the `style_retriever` tool to get examples of the user's writing style. The topic for the tool should be the core message of the email.\n"
-    "2. Second, use the retrieved style examples to write the email draft, ensuring the tone, phrasing, and structure match the examples.\n\n"
+    "You have access to read-only tools (`google_calendar_reader`, `gmail_reader`, `style_retriever`) "
+    "and write-action tools (`gmail_sender`, `calendar_event_creator`).\n"
+    "SAFETY PROTOCOL: For any task that requires a write-action tool "
+    "(sending an email, creating an event), you MUST first present your plan and the parameters for the tool. "
+    "Then, you MUST ask for confirmation by ending your response with the exact phrase 'Shall I proceed? [y/n]'. "
+    "DO NOT call the write-action tool until the user responds with 'y' or 'yes'."
     "Current date: {current_date}"
 )
 
@@ -41,20 +43,22 @@ system_prompt_template = (
 print("Initializing tools...")
 calendar_tool = GoogleCalendarTool()
 gmail_tool = GmailTool()
-style_tool = StyleRetrieverTool() # Create an instance of the new tool
+style_tool = StyleRetrieverTool()
+gmail_sender_tool = GmailSenderTool()
+calendar_creator_tool = CalendarCreatorTool()
 print("Tools initialized successfully.")
 
 # --- Initialize the Assistant Agent ---
-# Add the new tool to the agent's function list
 digital_twin = Assistant(
     llm=llm_config,
-    function_list=[calendar_tool, gmail_tool, style_tool] 
+    function_list=[
+        calendar_tool, gmail_tool, style_tool, 
+        gmail_sender_tool, calendar_creator_tool
+    ] 
 )
 
 def run_agent_with_dynamic_prompt(messages: list) -> list:
-    """
-    Injects the current date into the system prompt before running the agent.
-    """
+    """Injects the current date into the system prompt before running the agent."""
     today_str = datetime.date.today().strftime('%Y-%m-%d')
     dynamic_system_prompt = system_prompt_template.format(current_date=today_str)
     digital_twin.system_message = dynamic_system_prompt
@@ -67,10 +71,11 @@ if __name__ == '__main__':
         print("Error: MODEL_STUDIO_URL and MODEL_STUDIO_API_KEY must be set in the .env file.")
     else:
         print("\n--- Digital Twin Assistant ---")
-        print("Try asking me to 'draft an email to a colleague about our project update'.")
+        print("Try asking me to 'send an email to test@example.com'.")
         print("Type 'quit' or 'exit' to end the conversation.")
         
         chat_history = []
+        last_assistant_response = ""
 
         while True:
             user_input = input("\nYou: ")
@@ -78,8 +83,13 @@ if __name__ == '__main__':
             if user_input.lower() in ['quit', 'exit']:
                 print("Assistant: Goodbye!")
                 break
-
-            chat_history.append({'role': 'user', 'content': user_input})
+            
+            # If the last response was a confirmation request and user says 'y',
+            # instruct the agent to proceed.
+            if "Shall I proceed? [y/n]" in last_assistant_response and user_input.lower() in ['y', 'yes']:
+                chat_history.append({'role': 'user', 'content': 'Yes, please proceed with the planned action.'})
+            else:
+                chat_history.append({'role': 'user', 'content': user_input})
             
             final_response = None
             response_stream = run_agent_with_dynamic_prompt(chat_history)
@@ -89,8 +99,10 @@ if __name__ == '__main__':
                 final_response = response
             
             if final_response:
-                assistant_message = final_response[-1] 
-                print(assistant_message['content'])
+                assistant_message = final_response[-1]
+                last_assistant_response = assistant_message['content']
+                print(last_assistant_response)
                 chat_history.extend(final_response)
             else:
-                print("I'm sorry, I encountered an error and couldn't process your request.")
+                print("I'm sorry, I encountered an error.")
+                last_assistant_response = ""
