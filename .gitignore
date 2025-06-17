@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+pip-selfcheck.json
+
+# Environment variables
+.env
+*.env
+
+# Google API Credentials
+credentials.json
+token.json
+
+# IDE and OS files
+.idea/
+.vscode/
+.DS_Store
