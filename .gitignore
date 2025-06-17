@@ -21,3 +21,4 @@ token.json
 .vscode/
 .DS_Store
 .token.pickle
+.credentials.json
