@@ -4,51 +4,44 @@ import os
 from dotenv import load_dotenv
 from qwen_agent.agents import Assistant
 
+# --- Custom Tool Imports ---
+# Import the new tool we just created
+from tools.calendar_tools import GoogleCalendarTool
+
 # --- Load Environment Variables ---
-# This line loads the environment variables from the .env file in the project's root directory.
-# It's crucial for securely managing API keys and other configurations.
 load_dotenv()
 
 # --- Configure the Language Model (LLM) ---
-# This dictionary defines the settings for the LLM that our agent will use.
-# We are configuring it to use a custom model deployed via Alibaba Cloud Model Studio.
 llm_config = {
-    # Instead of 'dashscope', provide the full API Endpoint URL from your Model Studio deployment.
-    # This tells the agent to connect to your specific model instance.
-    'model_server': os.getenv('MODEL_STUDIO_URL'), # e.g., 'http://<your-model-studio-endpoint>/v1'
-
-    # The API key for your specific Model Studio deployment.
-    # We fetch this from the environment variables for security.
+    'model_server': os.getenv('MODEL_STUDIO_URL'),
     'api_key': os.getenv('MODEL_STUDIO_API_KEY'),
-
-    # The model name can often be a placeholder when using a direct endpoint,
-    # but it's good practice to set it to the name of your deployed model.
     'model': 'qwen-max', 
-
-    # Optional: Configuration for the generation process.
     'generate_cfg': {
         'top_p': 0.8
     }
 }
 
-
 # --- Define the System Prompt ---
-# The system prompt gives the LLM its core identity and instructions.
-# It sets the context for all future interactions.
 system_prompt = (
     "You are a highly capable AI personal assistant, a 'Digital Twin'. "
     "Your primary goal is to learn from the user's data and communication style to assist them proactively. "
     "You will manage schedules, handle emails, and draft communications that match the user's persona. "
-    "Always be helpful, efficient, and maintain the user's voice."
+    "When asked about schedules or plans, use the google_calendar_reader tool."
 )
+
+# --- Initialize Tools ---
+# Create an instance of our Google Calendar tool.
+# This will trigger the authentication flow if run for the first time.
+calendar_tool = GoogleCalendarTool()
 
 
 # --- Initialize the Assistant Agent ---
-# We create an instance of the Assistant agent, which is designed to be a general-purpose
-# helper capable of using tools to accomplish tasks.
+# We now provide the 'function_list' with our tool instance. The agent will
+# automatically know about this tool and its capabilities.
 digital_twin = Assistant(
-    llm=llm_config,          # Pass the LLM configuration.
-    system_message=system_prompt  # Set the agent's core identity.
+    llm=llm_config,
+    system_message=system_prompt,
+    function_list=[calendar_tool] 
 )
 
 # You can add a simple test here to ensure the agent is initialized.
@@ -60,21 +53,18 @@ if __name__ == '__main__':
         print("Digital Twin agent initialized successfully.")
         print(f"Connecting to model server at: {llm_config['model_server']}")
         
-        # A simple test to see if the LLM is responding.
-        messages = [{'role': 'user', 'content': 'Hello, who are you?'}]
+        # NEW TEST CASE: This prompt is designed to trigger our new tool.
+        messages = [{'role': 'user', 'content': 'What does my schedule look like today?'}]
         
-        # This will hold the final response from the agent.
         final_response = None
-
+        
         # Loop through the streaming responses from the agent
         for response in digital_twin.run(messages):
-            # Each `response` is a chunk of the full message.
-            # We keep overwriting `final_response` so that after the loop,
-            # it will hold only the last, complete message.
             final_response = response
         
         # Print only the final, complete response after the streaming is done.
         if final_response:
-            print("\n--- Final Agent Response ---")
-            # The actual text content is inside the 'content' key of the last message dictionary.
-            print(final_response[0]['content'])
+            print("\n--- Tool Call and Final Response ---")
+            # We print the full final response list to see the agent's reasoning and tool output
+            for item in final_response:
+                print(item)
