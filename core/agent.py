@@ -59,9 +59,22 @@ if __name__ == '__main__':
     else:
         print("Digital Twin agent initialized successfully.")
         print(f"Connecting to model server at: {llm_config['model_server']}")
+        
         # A simple test to see if the LLM is responding.
-        # This will be replaced with our main CLI loop later.
         messages = [{'role': 'user', 'content': 'Hello, who are you?'}]
-        for response in digital_twin.run(messages):
-            print(response)
+        
+        # This will hold the final response from the agent.
+        final_response = None
 
+        # Loop through the streaming responses from the agent
+        for response in digital_twin.run(messages):
+            # Each `response` is a chunk of the full message.
+            # We keep overwriting `final_response` so that after the loop,
+            # it will hold only the last, complete message.
+            final_response = response
+        
+        # Print only the final, complete response after the streaming is done.
+        if final_response:
+            print("\n--- Final Agent Response ---")
+            # The actual text content is inside the 'content' key of the last message dictionary.
+            print(final_response[0]['content'])
