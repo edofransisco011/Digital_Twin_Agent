@@ -15,3 +15,7 @@ google-auth-oauthlib
 
 # Qwen-Agent Dependencies
 python-dateutil
+
+# Vector Database & Embeddings
+chromadb
+sentence-transformers
