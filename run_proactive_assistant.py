@@ -73,7 +73,7 @@ def main():
         assistant_message = final_response[-1]['content']
         print(assistant_message)
         
-        # NEW: Check if confirmation is required and start an input loop
+        # Check if confirmation is required and start an input loop
         if "Shall I proceed? [y/n]" in assistant_message:
             user_confirmation = input("\nConfirm Action [y/n]: ")
             if user_confirmation.lower() in ['y', 'yes']:
