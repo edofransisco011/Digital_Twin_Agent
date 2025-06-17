@@ -46,13 +46,15 @@ class GoogleCalendarTool(BaseTool):
         self.service = build('calendar', 'v3', credentials=creds)
         print("Google Calendar tool initialized successfully.")
 
-    def call(self, params: str) -> str:
+    def call(self, params: str, **kwargs) -> str:
         """
         The main method that gets executed when the tool is called by the agent.
+        
+        **kwargs is added to accept any extra arguments passed by the agent framework,
+        preventing a TypeError.
         """
         try:
             # The qwen-agent framework passes params as a string, so we parse it.
-            # A more robust solution would use json.loads with error handling.
             params_dict = self._parse_params(params)
             date_str = params_dict.get('date')
 
@@ -112,4 +114,3 @@ class GoogleCalendarTool(BaseTool):
         except (json.JSONDecodeError, TypeError):
             # If params are not a valid JSON string, return an empty dict
             return {}
-
