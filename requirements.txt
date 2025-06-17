@@ -1,0 +1,17 @@
+# Core LLM Framework
+qwen-agent
+
+# API Server
+fastapi
+uvicorn[standard]
+
+# Environment & Config
+python-dotenv
+
+# Google API Integration
+google-api-python-client
+google-auth-httplib2
+google-auth-oauthlib
+
+# Qwen-Agent Dependencies
+python-dateutil
