@@ -20,3 +20,4 @@ token.json
 .idea/
 .vscode/
 .DS_Store
+.token.pickle
