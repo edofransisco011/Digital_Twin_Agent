@@ -1,22 +1,14 @@
 # digital_twin_agent/api/main.py
 
+import asyncio
 from fastapi import FastAPI
 from pydantic import BaseModel, Field
 from typing import List, Dict, Any
 
 # Import the core agent runner function from our existing module.
-# This allows us to reuse all the agent logic we've already built.
 from core.agent import run_agent_with_dynamic_prompt
 
 # --- Pydantic Models for Data Validation ---
-# These models define the expected structure for our API requests and responses.
-# FastAPI uses them to validate incoming data, serialize outgoing data, and auto-generate documentation.
-
-class ChatMessage(BaseModel):
-    """Represents a single message in the chat history."""
-    role: str = Field(..., description="The role of the message sender (e.g., 'user', 'assistant').")
-    content: str = Field(..., description="The text content of the message.")
-
 class ChatRequest(BaseModel):
     """The structure of a request to the /chat endpoint."""
     message: str = Field(..., description="The new message from the user.")
@@ -34,34 +26,36 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# --- Synchronous Helper Function ---
+def get_agent_response(chat_history: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    This is a synchronous wrapper that runs the agent's generator and returns
+    only the final, complete response list. This function will be run in a separate thread.
+    """
+    final_response_list = None
+    # The run method is a synchronous generator, so we use a regular for loop.
+    for response in run_agent_with_dynamic_prompt(chat_history):
+        final_response_list = response
+    return final_response_list
+
 # --- API Endpoint Definition ---
 @app.post("/chat", response_model=ChatResponse, tags=["Agent Interaction"])
-def chat_with_agent(request: ChatRequest):
+async def chat_with_agent(request: ChatRequest):
     """
-    Receives a user message and conversation history, runs the agent,
-    and returns the agent's response along with the updated history.
+    Receives a user message and conversation history, runs the agent in a separate
+    thread to avoid blocking the server, and returns the agent's final response.
     """
-    print(f"Received chat request: {request.message}")
+    print(f"Received async chat request: {request.message}")
 
-    # The conversation history is passed directly from the request.
     chat_history = request.history
-    
-    # Append the new user message to the history.
     chat_history.append({'role': 'user', 'content': request.message})
     
-    # Run the agent with the updated history.
-    final_response_list = None
-    response_stream = run_agent_with_dynamic_prompt(chat_history)
-    
-    for response in response_stream:
-        # The last item in the stream is the complete response list.
-        final_response_list = response
+    # Run the blocking, synchronous `get_agent_response` function in a separate thread
+    # and wait for its result without blocking the main FastAPI event loop.
+    final_response_list = await asyncio.to_thread(get_agent_response, chat_history)
     
     if final_response_list:
-        # The agent's final text reply is the last message in the list.
         assistant_reply = final_response_list[-1]['content']
-        
-        # Add the agent's full turn (including tool calls) to the history.
         chat_history.extend(final_response_list)
         
         return ChatResponse(reply=assistant_reply, history=chat_history)
