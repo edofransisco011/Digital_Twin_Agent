@@ -18,7 +18,7 @@ class ContentRetrieverTool(BaseTool):
     parameters = [{
         'name': 'query',
         'type': 'string',
-        'description': 'The specific question or search term to find in the email content.',
+        'description': 'The user\'s original, verbatim question about the email content.', # The LLM should pass the user's raw question.
         'required': True
     }]
 
@@ -38,11 +38,12 @@ class ContentRetrieverTool(BaseTool):
             if not query:
                 return '{"error": "Query parameter is missing."}'
 
-            print(f"Tool Action: Searching for content related to: '{query}'")
+            # IMPROVEMENT: We now use the user's raw query for the search, which is often more robust.
+            print(f"Tool Action: Searching for content semantically similar to: '{query}'")
             search_results = self.vector_store.search(query_text=query, n_results=4) # Retrieve more results for context
 
             if not search_results:
-                return '{"retrieved_content": "No relevant information found in your emails."}'
+                return '{"retrieved_content": "No relevant information found in your emails matching that query."}'
 
             # Join the results into a single context block for the LLM
             formatted_results = "\n\n---\n\n".join(search_results)
