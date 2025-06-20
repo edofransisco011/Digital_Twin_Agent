@@ -8,7 +8,7 @@ from core.auth import get_google_credentials
 from qwen_agent.tools.base import BaseTool
 
 class GmailSenderTool(BaseTool):
-    """A tool to send emails using the Gmail API."""
+    """A synchronous tool to send emails using the Gmail API."""
     name = 'gmail_sender'
     description = "Sends an email to a specified recipient with a subject and body."
     parameters = [
@@ -24,6 +24,7 @@ class GmailSenderTool(BaseTool):
         print("Gmail Sender tool initialized successfully.")
 
     def call(self, params: str, **kwargs) -> str:
+        """The main synchronous method executed by the agent."""
         try:
             params_dict = self._parse_params(params)
             to = params_dict.get('to')
@@ -58,7 +59,7 @@ class GmailSenderTool(BaseTool):
 
 
 class CalendarCreatorTool(BaseTool):
-    """A tool to create events in Google Calendar."""
+    """A synchronous tool to create events in Google Calendar."""
     name = 'calendar_event_creator'
     description = "Creates a new event in the user's Google Calendar."
     parameters = [
@@ -75,6 +76,7 @@ class CalendarCreatorTool(BaseTool):
         print("Calendar Creator tool initialized successfully.")
 
     def call(self, params: str, **kwargs) -> str:
+        """The main synchronous method executed by the agent."""
         try:
             params_dict = self._parse_params(params)
             event = {
